@@ -86,7 +86,7 @@ contract TokenTest is DSTest, Test {
         vm.prank(burner);
         vm.expectRevert();
         gptContract.mint(user, mintValue);
-        gptContract.giveBridgeRole(burner);
+        gptContract.giveMintBurnRole(burner);
         vm.prank(burner);
         gptContract.mint(user, mintValue);
         assertEq(GPT(gptContract).balanceOf(user), mintValue);
@@ -100,7 +100,7 @@ contract TokenTest is DSTest, Test {
         gptContract.burn(user, mintValue);
         assertEq(GPT(gptContract).balanceOf(user), mintValue);
         assertEq(GPT(gptContract).totalSupply(), (initialSupply + mintValue));
-        gptContract.giveBridgeRole(burner);
+        gptContract.giveMintBurnRole(burner);
         vm.prank(burner);
         gptContract.burn(user, mintValue);
         assertEq(GPT(gptContract).totalSupply(), initialSupply);
@@ -112,7 +112,7 @@ contract TokenTest is DSTest, Test {
         vm.prank(user);
         vm.expectRevert();
         gptContract.compensate(user, burnValue, _dataCompensate);
-        gptContract.giveBridgeRole(burner);
+        gptContract.giveMintBurnRole(burner);
         vm.prank(burner);
         vm.expectRevert();
         gptContract.compensate(user, burnValue, _dataCompensate);
