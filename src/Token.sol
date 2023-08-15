@@ -63,7 +63,7 @@ contract GPT is ERC20, AccessControl {
         return _burnFrom(from, amount);
     }
 
-    function giveBridgeRole(
+    function giveMintBurnRole(
         address to
     ) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
         _grantRole(MINT_BURNER_ROLE, to);
