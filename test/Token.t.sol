@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-/*
+
 import "ds-test/test.sol";
 import "forge-std/Test.sol";
 import "../src/Token.sol";
@@ -13,30 +13,31 @@ contract TokenTest is DSTest, Test {
     string public symbol;
     uint256 public initialSupply;
     address public user;
-    address public admin;
-    string[] data;
-    bytes32 public cHash;
+    address public burner;
+    string[] _dataDeploy;
+    string[] _dataCompensate;
 
     function setUp() public {
         mintValue = 10000000;
         burnValue = 5000000;
-        data = [
-            "idFazenda: 1",
-            "fornecedor: Valtair",
-            "documento: 927.909",
-            "nome_fazenda: Estancia",
-            "codigo_fazenda: 7602101060",
-            "safra: 1",
-            "ano: 2010",
-            "quantidade: 2.429"
+        _dataDeploy = [
+            "linkCPRVerde1.com.br/cprverde",
+            "cprverde/linkCPRVerde2.com.br/cprverde",
+            "cprvPRVerde3.com.br/cprverde",
+            "cinkCPRVerde4.com.br/cprverde"
+        ];
+        _dataCompensate = [
+            "linkCPRVerde1.com.br/cprverde",
+            "Toneladas de carbono: 1",
+            "cprverde/linkCPRVerde2.com.br/cprverde",
+            "Toneladas de carbono: 8"
         ];
         name = "Greener Preservation Token";
         symbol = "GPT";
         initialSupply = 72000000000000;
         user = makeAddr("user");
-        admin = makeAddr("admin");
-        gptContract = new GPT(name, symbol, initialSupply, admin);
-        GPT(gptContract).addOwnership(admin);
+        burner = makeAddr("burner");
+        gptContract = new GPT(name, symbol, initialSupply, _dataDeploy);
     }
 
     function test_createToken() public {
@@ -50,44 +51,73 @@ contract TokenTest is DSTest, Test {
         gptContract.mint(user, mintValue);
 
         assertEq(GPT(gptContract).balanceOf(user), mintValue);
+        assertEq(GPT(gptContract).totalSupply(), (initialSupply + mintValue));
     }
 
     function test_compensate() public {
         gptContract.mint(user, mintValue);
         vm.prank(user);
-        gptContract.approveBurner();
-        vm.prank(admin);
-        gptContract.compensate(user, burnValue, data);
+        vm.expectRevert();
+        gptContract.compensate(user, burnValue, _dataCompensate);
+        gptContract.compensate(user, burnValue, _dataCompensate);
         assertEq(GPT(gptContract).balanceOf(user), (mintValue - burnValue));
     }
 
     function test_retrieveData() public {
+        assertEq(
+            GPT(gptContract).cprLinks(0),
+            ("linkCPRVerde1.com.br/cprverde")
+        );
+        assertEq(
+            GPT(gptContract).cprLinks(1),
+            ("cprverde/linkCPRVerde2.com.br/cprverde")
+        );
+        assertEq(
+            GPT(gptContract).cprLinks(2),
+            ("cprvPRVerde3.com.br/cprverde")
+        );
+        assertEq(
+            GPT(gptContract).cprLinks(3),
+            ("cinkCPRVerde4.com.br/cprverde")
+        );
+    }
+
+    function test_3rdPartyMint() public {
+        vm.prank(burner);
+        vm.expectRevert();
+        gptContract.mint(user, mintValue);
+        gptContract.giveBridgeRole(burner);
+        vm.prank(burner);
+        gptContract.mint(user, mintValue);
+        assertEq(GPT(gptContract).balanceOf(user), mintValue);
+        assertEq(GPT(gptContract).totalSupply(), (initialSupply + mintValue));
+    }
+
+    function test_3rdPartyBurn() public {
+        gptContract.mint(user, mintValue);
+        vm.prank(burner);
+        vm.expectRevert();
+        gptContract.burn(user, mintValue);
+        assertEq(GPT(gptContract).balanceOf(user), mintValue);
+        assertEq(GPT(gptContract).totalSupply(), (initialSupply + mintValue));
+        gptContract.giveBridgeRole(burner);
+        vm.prank(burner);
+        gptContract.burn(user, mintValue);
+        assertEq(GPT(gptContract).totalSupply(), initialSupply);
+        assertEq(GPT(gptContract).balanceOf(user), 0);
+    }
+
+    function test_revertCompensate() public {
         gptContract.mint(user, mintValue);
         vm.prank(user);
-        gptContract.approveBurner();
-        vm.prank(admin);
-        gptContract.compensate(user, burnValue, data);
-        assertEq(GPT(gptContract).balanceOf(user), (mintValue - burnValue));
-        /*assertEq(GPT(gptContract).compensatedData(cHash, 0), "idFazenda: 1");
-        assertEq(
-            GPT(gptContract).compensatedData(cHash, 1),
-            "fornecedor: Valtair"
-        );
-        assertEq(
-            GPT(gptContract).compensatedData(cHash, 2),
-            "documento: 927.909"
-        );
-        assertEq(
-            GPT(gptContract).compensatedData(cHash, 3),
-            "nome_fazenda: Estancia"
-        );
-        assertEq(
-            GPT(gptContract).compensatedData(cHash, 4),
-            "codigo_fazenda: 7602101060"
-        );
-        assertEq(GPT(gptContract).compensatedData(cHash, 5), "safra: 1");
-        assertEq(GPT(gptContract).compensatedData(cHash, 6), "ano: 2010");
-        assertEq(
-            GPT(gptContract).compensatedData(cHash, 7),
-            "quantidade: 2.429"
-        ); */
+        vm.expectRevert();
+        gptContract.compensate(user, burnValue, _dataCompensate);
+        gptContract.giveBridgeRole(burner);
+        vm.prank(burner);
+        vm.expectRevert();
+        gptContract.compensate(user, burnValue, _dataCompensate);
+        vm.prank(burner);
+        gptContract.mint(user, mintValue);
+        assertEq(GPT(gptContract).balanceOf(user), (mintValue + mintValue));
+    }
+}

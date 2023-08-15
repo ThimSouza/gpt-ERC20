@@ -5,6 +5,7 @@ import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 
 contract GPT is ERC20, AccessControl {
+    bytes32 public constant MINT_BURNER_ROLE = keccak256("MINT_BURNER_ROLE");
     mapping(bytes32 => string[]) public compensatedData;
     string[] public cprLinks;
 
@@ -18,13 +19,14 @@ contract GPT is ERC20, AccessControl {
     ) ERC20(name, symbol) {
         _mint(msg.sender, initialSupply);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINT_BURNER_ROLE, msg.sender);
         cprLinks = _cprLinks;
     }
 
     function mint(
         address to,
         uint256 amount
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(MINT_BURNER_ROLE) {
         _mint(to, amount);
     }
 
@@ -57,7 +59,14 @@ contract GPT is ERC20, AccessControl {
     function burn(
         address from,
         uint256 amount
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+    ) public onlyRole(MINT_BURNER_ROLE) returns (bool) {
         return _burnFrom(from, amount);
+    }
+
+    function giveBridgeRole(
+        address to
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        _grantRole(MINT_BURNER_ROLE, to);
+        return (true);
     }
 }
